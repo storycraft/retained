@@ -201,18 +201,11 @@ impl VisitMut for RetainedLetVisitor<'_, '_> {
 
                 let StateArg {
                     name: ref state_name,
-                    decl:
-                        StateDecl {
-                            name: ref state_ty,
-                            generics: ref state_generics,
-                        },
                     ..
                 } = self.state_arg;
 
                 let index = Index::from(self.fields.len());
                 self.fields.push(StateField { ty: ty.clone() });
-
-                let inner_ty = quote::format_ident!("__{}", state_ty);
 
                 let init_var_name = Ident::new("__init", name.span());
 
@@ -232,23 +225,20 @@ impl VisitMut for RetainedLetVisitor<'_, '_> {
 
                 *stmt = Stmt::Expr(
                     Expr::Verbatim(quote! {
-                        let #ref_token #mut_token #name = *{
-                            let __tmp = unsafe {
-                                ::retained::__private::Ptr::new(#state_name)
-                                    .byte_add(core::mem::offset_of!(#inner_ty #state_generics, #index))
-                                    .cast::<::core::option::Option<#ty>>()
-                                    .as_mut()
-                            };
+                        let __tmp = ::retained::__private::Ptr::new(
+                            ::core::ptr::addr_of_mut!(#state_name .0. #index)
+                        ).cast::<::core::option::Option<#ty>>();
 
-                            if __tmp.is_none() {
-                                *__tmp = ::core::option::Option::Some({
-                                    #init_var
-                                    #init_var_name
-                                });
-                            }
+                        let __tmp = unsafe { __tmp.as_mut() };
 
-                            __tmp.as_mut().unwrap()
+                        if __tmp.is_none() {
+                            *__tmp = ::core::option::Option::Some({
+                                #init_var
+                                #init_var_name
+                            });
                         }
+
+                        let #ref_token #mut_token #name = *__tmp.as_mut().unwrap();
                     }),
                     Some(Default::default()),
                 );

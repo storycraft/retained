@@ -6,11 +6,12 @@ use retained::retained;
 pub fn asdf<T: Debug>(input: T, input2: &str) {
     #[retained]
     let ref a: T = input;
-    dbg!(a);
 
     #[retained]
     let ref mut nested: State2 = State2::new();
     asdf2(input2, nested);
+
+    dbg!(a);
 }
 
 #[retained(State2)]
@@ -25,5 +26,8 @@ fn main() {
     let state = &mut State::new();
 
     asdf(&123, "Hello world", state);
-    asdf(&456, "Hello world2", state);
+    asdf(&456, "", state);
+    asdf(&789, "", state);
+    asdf(&012, "world", state);
+    asdf(&345, "Hello", state);
 }
