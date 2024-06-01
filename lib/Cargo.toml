@@ -7,4 +7,4 @@ authors = { workspace = true }
 license = { workspace = true }
 
 [dependencies]
-retained-macro = { path = "../macro" }
+retained-macro = { workspace = true }
