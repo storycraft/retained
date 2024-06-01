@@ -1,0 +1,10 @@
+[package]
+name = "retained"
+description = { workspace = true }
+version = { workspace = true }
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+
+[dependencies]
+retained-macro = { version = "*", path = "../macro" }
