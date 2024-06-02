@@ -229,16 +229,18 @@ impl VisitMut for RetainedLetVisitor<'_, '_> {
                             ::core::ptr::addr_of_mut!(#state_name .0. #index)
                         ).cast::<::core::option::Option<#ty>>();
 
-                        let __tmp = unsafe { __tmp.as_mut() };
+                        let #ref_token #mut_token #name = *{
+                            let __tmp = unsafe { __tmp.as_mut() };
 
-                        if __tmp.is_none() {
-                            *__tmp = ::core::option::Option::Some({
-                                #init_var
-                                #init_var_name
-                            });
-                        }
+                            if __tmp.is_none() {
+                                *__tmp = ::core::option::Option::Some({
+                                    #init_var
+                                    #init_var_name
+                                });
+                            }
 
-                        let #ref_token #mut_token #name = *__tmp.as_mut().unwrap();
+                            __tmp
+                        }.as_mut().unwrap();
                     }),
                     Some(Default::default()),
                 );
