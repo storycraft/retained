@@ -22,14 +22,14 @@ dependencies = [
 
 [[package]]
 name = "retained"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "retained-macro",
 ]
 
 [[package]]
 name = "retained-macro"
-version = "0.0.0"
+version = "0.0.1"
 dependencies = [
  "proc-macro2",
  "quote",

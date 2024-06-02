@@ -7,10 +7,11 @@ resolver = "2"
 
 [workspace.package]
 description = "retained"
-version = "0.0.0"
+version = "0.0.1"
 edition = "2021"
 authors = ["storycraft <storycraft@pancake.sh>"]
 license = "MIT OR Apache-2.0"
+repository = "https://github.com/storycraft/retained"
 
 [workspace.dependencies]
-retained-macro = { version = "0.0.0", path = "./macro" }
+retained-macro = { version = "0.0.1", path = "./macro" }
