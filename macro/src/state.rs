@@ -36,7 +36,7 @@ impl ToTokens for State {
 
         let params = &generics.params;
 
-        let inner_name = quote::format_ident!("__{}", name);
+        let inner_name = quote::format_ident!("__{}", name, span = Span::mixed_site());
 
         let field_default = quote_spanned!(
             Span::mixed_site() => ::core::option::Option::None
@@ -44,7 +44,7 @@ impl ToTokens for State {
         let field_default = [&field_default].into_iter().cycle().take(fields.len());
 
         *tokens = quote_spanned!(Span::mixed_site() =>
-            #vis struct #inner_name #generics(#(::core::option::Option<#fields>),*);
+            struct #inner_name #generics(#(::core::option::Option<#fields>),*);
 
             #[repr(transparent)]
             #[non_exhaustive]
