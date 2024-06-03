@@ -108,17 +108,15 @@ impl VisitMut for RetainedLetExpander<'_, '_> {
 
                 *stmt = Stmt::Expr(
                     Expr::Verbatim(quote_spanned!(Span::mixed_site() =>
-                        let __tmp = &mut #state_name .0. #index;
-
                         let #pat = *{
-                            if __tmp.is_none() {
-                                *__tmp = ::core::option::Option::Some({
+                            if #state_name .0. #index.is_none() {
+                                #state_name .0. #index = ::core::option::Option::Some({
                                     #init_var
                                     #init_ident
                                 });
                             }
 
-                            __tmp
+                            &mut #state_name .0. #index
                         }.as_mut().unwrap();
                     )),
                     Some(Default::default()),
