@@ -108,7 +108,7 @@ impl VisitMut for RetainedLetExpander<'_, '_> {
 
                 *stmt = Stmt::Expr(
                     Expr::Verbatim(quote_spanned!(Span::mixed_site() =>
-                        let mut __tmp = &mut #state_name .0. #index;
+                        let __tmp = &mut #state_name .0. #index;
 
                         let #pat = *{
                             if __tmp.is_none() {
