@@ -108,10 +108,7 @@ impl VisitMut for RetainedLetExpander<'_, '_> {
 
                 *stmt = Stmt::Expr(
                     Expr::Verbatim(quote_spanned!(Span::mixed_site() =>
-                        let mut __tmp = ::retained::__private::Ptr::new(
-                            ::core::ptr::addr_of_mut!(#state_name .0. #index)
-                        );
-                        let __tmp = unsafe { __tmp.as_mut() };
+                        let mut __tmp = &mut #state_name .0. #index;
 
                         let #pat = *{
                             if __tmp.is_none() {
