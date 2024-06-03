@@ -58,6 +58,12 @@ impl ToTokens for State {
                     }
                 }
 
+                impl<#params> ::core::fmt::Debug for #name #generics {
+                    fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
+                        f.debug_struct(::core::stringify!(#name)).finish_non_exhaustive()
+                    }
+                }
+
                 impl<#params> #name #generics {
                     pub const fn new() -> Self {
                         Self(#inner_name (#(#field_default),*))
