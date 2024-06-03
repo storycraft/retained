@@ -35,6 +35,6 @@ fn main() {
     // but print same as first since states are already initialized.
     display(&456, "", state);
     display(&789, "", state);
-    display(&012, "world", state);
+    display(&12, "world", state);
     display(&345, "Hello", state);
 }

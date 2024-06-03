@@ -16,7 +16,7 @@ impl<T> Ptr<T> {
     }
 
     #[inline(always)]
-    pub unsafe fn as_mut(&self) -> &mut T {
+    pub unsafe fn as_mut(&mut self) -> &mut T {
         &mut *self.ptr
     }
 }

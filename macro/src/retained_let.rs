@@ -69,11 +69,8 @@ impl VisitMut for RetainedLetExpander<'_, '_> {
                     continue;
                 }
 
-                let RetainedLetStmt {
-                    pat,
-                    ty,
-                    init,
-                } = match RetainedLetStmt::try_from_local(local) {
+                let RetainedLetStmt { pat, ty, init } = match RetainedLetStmt::try_from_local(local)
+                {
                     Ok(res) => res,
 
                     Err(err) => {
@@ -111,13 +108,12 @@ impl VisitMut for RetainedLetExpander<'_, '_> {
 
                 *stmt = Stmt::Expr(
                     Expr::Verbatim(quote_spanned!(Span::mixed_site() =>
-                        let __tmp = ::retained::__private::Ptr::new(
+                        let mut __tmp = ::retained::__private::Ptr::new(
                             ::core::ptr::addr_of_mut!(#state_name .0. #index)
                         );
+                        let __tmp = unsafe { __tmp.as_mut() };
 
                         let #pat = *{
-                            let __tmp = unsafe { __tmp.as_mut() };
-
                             if __tmp.is_none() {
                                 *__tmp = ::core::option::Option::Some({
                                     #init_var

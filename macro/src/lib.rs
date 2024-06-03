@@ -1,15 +1,12 @@
-mod state;
 mod retained_let;
+mod state;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{quote_spanned, ToTokens};
 use retained_let::RetainedLetExpander;
 use state::{State, StateArg, StateDecl};
-use syn::{
-    parse_macro_input,
-    visit_mut::VisitMut, FnArg, Ident, ItemFn,
-};
+use syn::{parse_macro_input, visit_mut::VisitMut, FnArg, Ident, ItemFn};
 
 #[proc_macro_attribute]
 pub fn retained(attr: TokenStream, item: TokenStream) -> TokenStream {
