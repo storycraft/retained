@@ -1,0 +1,16 @@
+[package]
+name = "egui-hello-world"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+retained = { workspace = true }
+
+eframe = "0.27.2"
+egui_extras = { version = "0.27.2", features = ["image"] }
+env_logger = { version = "0.11.3", default-features = false, features = [
+    "auto-color",
+] }
