@@ -47,6 +47,7 @@ impl ToTokens for State {
             #vis struct #inner_name #generics(#(::core::option::Option<#fields>),*);
 
             #[repr(transparent)]
+            #[non_exhaustive]
             #vis struct #name #generics(
                 #inner_name #generics,
             );
