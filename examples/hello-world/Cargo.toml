@@ -1,5 +1,5 @@
 [package]
-name = "hello_world"
+name = "hello-world"
 edition.workspace = true
 authors.workspace = true
 license.workspace = true
