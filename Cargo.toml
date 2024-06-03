@@ -1,7 +1,8 @@
 [workspace]
 members = [
     "lib",
-    "macro"
+    "macro",
+    "examples/*"
 ]
 resolver = "2"
 
@@ -14,4 +15,5 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/storycraft/retained"
 
 [workspace.dependencies]
+retained = { path = "./lib" }
 retained-macro = { version = "0.0.1", path = "./macro" }

@@ -1,0 +1,10 @@
+[package]
+name = "hello_world"
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+retained = { workspace = true }

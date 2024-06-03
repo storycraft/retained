@@ -3,6 +3,13 @@
 version = 3
 
 [[package]]
+name = "hello_world"
+version = "0.0.0"
+dependencies = [
+ "retained",
+]
+
+[[package]]
 name = "proc-macro2"
 version = "1.0.84"
 source = "registry+https://github.com/rust-lang/crates.io-index"
