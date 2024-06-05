@@ -1,6 +1,6 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
+//! Ported from https://github.com/emilk/egui/tree/master/examples/hello_world
 
-/// Ported from https://github.com/emilk/egui/tree/master/examples/hello_world
 use eframe::egui;
 use retained::retained;
 
