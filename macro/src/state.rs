@@ -69,7 +69,7 @@ impl ToTokens for State {
                 }
 
                 impl<#params> #name #generics {
-                    pub const fn new() -> Self {
+                    pub fn new() -> Self {
                         Self(#inner_name (#(#field_init_iter),*))
                     }
                 }
