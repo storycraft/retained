@@ -1,16 +1,17 @@
 use proc_macro2::Span;
 use quote::{format_ident, quote_spanned};
 use syn::{
-    parse_quote, visit::Visit, visit_mut::VisitMut, AttrStyle, Block, Expr,
-    Ident, Index, Local, LocalInit, Pat, PatIdent, PatType, Stmt, Type, TypeTuple,
+    parse::{Parse, ParseStream},
+    parse_quote,
+    visit::Visit,
+    visit_mut::VisitMut,
+    AttrStyle, Block, Expr, Ident, Index, Local, Pat, PatIdent, PatType, Stmt, Type, TypeTuple,
 };
 
 use crate::state::StateField;
 
 pub struct RetainedLetStmt {
-    pub pat: Pat,
     pub ty: Type,
-    pub init: LocalInit,
 }
 
 impl RetainedLetStmt {
@@ -24,18 +25,24 @@ impl RetainedLetStmt {
             return Err(syn::Error::new_spanned(i, "missing type for retained let"));
         };
 
-        let Some(init) = i.init.as_ref() else {
+        if i.init.is_none() {
             return Err(syn::Error::new_spanned(
                 i,
                 "missing initializer in retained let",
             ));
         };
 
-        Ok(Self {
-            pat: i.pat.clone(),
-            ty,
-            init: init.clone(),
-        })
+        Ok(Self { ty })
+    }
+}
+
+pub struct LetAttrList {
+    pub default: bool,
+}
+
+impl Parse for LetAttrList {
+    fn parse(_input: ParseStream) -> syn::Result<Self> {
+        todo!()
     }
 }
 
@@ -61,18 +68,8 @@ pub struct RetainedLetExpander<'a> {
 }
 
 impl<'a> RetainedLetExpander<'a> {
-    pub fn expand(
-        state: &Ident,
-        depth: usize,
-        fields: &'a mut Vec<StateField>,
-        block: &mut Block,
-    ) {
-        let block_state = format_ident!(
-            "{}{}",
-            state,
-            depth,
-            span = Span::mixed_site()
-        );
+    pub fn expand(state: &Ident, depth: usize, fields: &'a mut Vec<StateField>, block: &mut Block) {
+        let block_state = format_ident!("{}{}", state, depth, span = Span::mixed_site());
 
         let mut this = Self {
             state: state.clone(),
@@ -135,7 +132,7 @@ impl<'a> RetainedLetExpander<'a> {
     }
 
     fn low(&mut self, local: &mut Local) -> Stmt {
-        let RetainedLetStmt { pat, ty, init } = match RetainedLetStmt::try_from_local(local) {
+        let RetainedLetStmt { ty } = match RetainedLetStmt::try_from_local(local) {
             Ok(res) => res,
 
             Err(err) => {
@@ -149,7 +146,7 @@ impl<'a> RetainedLetExpander<'a> {
         self.stack.push(ty.clone());
 
         let init_ident = Ident::new("__init", Span::mixed_site());
-
+        let pat = &local.pat;
         let init_var = Local {
             attrs: vec![],
             let_token: Default::default(),
@@ -160,7 +157,7 @@ impl<'a> RetainedLetExpander<'a> {
                 ident: init_ident.clone(),
                 subpat: None,
             }),
-            init: Some(init),
+            init: local.init.take(),
             semi_token: Default::default(),
         };
 
