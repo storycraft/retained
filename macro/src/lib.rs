@@ -3,10 +3,10 @@ mod state;
 
 use proc_macro::TokenStream;
 use proc_macro2::Span;
-use quote::{quote_spanned, ToTokens};
+use quote::quote_spanned;
 use retained_let::RetainedLetExpander;
 use state::{State, StateArg, StateDecl};
-use syn::{parse_macro_input, visit_mut::VisitMut, FnArg, Ident, ItemFn};
+use syn::{parse_macro_input, parse_quote, Ident, ItemFn};
 
 #[proc_macro_attribute]
 pub fn retained(attr: TokenStream, item: TokenStream) -> TokenStream {
@@ -20,19 +20,12 @@ pub fn retained(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let state_arg = StateArg {
         name: Ident::new("__inner", Span::mixed_site()),
-        decl: state.decl.clone(),
+        decl: &state.decl,
     };
 
-    RetainedLetExpander {
-        state_arg: &state_arg,
-        fields: &mut state.fields,
-    }
-    .visit_block_mut(&mut f.block);
+    RetainedLetExpander::expand(&state_arg.name, 0, &mut state.fields, &mut f.block);
 
-    f.sig.inputs.push({
-        let s = TokenStream::from(state_arg.to_token_stream());
-        parse_macro_input!(s as FnArg)
-    });
+    f.sig.inputs.push(parse_quote!(#state_arg));
 
     TokenStream::from(quote_spanned! { Span::mixed_site() =>
         #state

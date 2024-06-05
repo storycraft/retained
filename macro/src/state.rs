@@ -2,7 +2,7 @@ use proc_macro2::Span;
 use quote::{quote_spanned, ToTokens};
 use syn::{
     parse::{Parse, ParseStream},
-    Generics, Ident, Type, Visibility,
+    Expr, Generics, Ident, Type, Visibility,
 };
 
 #[derive(Clone)]
@@ -20,10 +20,15 @@ impl Parse for StateDecl {
     }
 }
 
+pub struct StateField {
+    pub ty: Type,
+    pub init: Expr,
+}
+
 pub struct State {
     pub vis: Visibility,
     pub decl: StateDecl,
-    pub fields: Vec<Type>,
+    pub fields: Vec<StateField>,
 }
 
 impl ToTokens for State {
@@ -38,13 +43,11 @@ impl ToTokens for State {
 
         let inner_name = quote::format_ident!("__{}", name, span = Span::mixed_site());
 
-        let field_default = quote_spanned!(
-            Span::mixed_site() => ::core::option::Option::None
-        );
-        let field_default = [&field_default].into_iter().cycle().take(fields.len());
+        let field_ty_iter = fields.iter().map(|field| &field.ty);
+        let field_init_iter = fields.iter().map(|field| &field.init);
 
         *tokens = quote_spanned!(Span::mixed_site() =>
-            struct #inner_name #generics(#(::core::option::Option<#fields>),*);
+            struct #inner_name #generics(#(#field_ty_iter),*);
 
             #[repr(transparent)]
             #[non_exhaustive]
@@ -67,7 +70,7 @@ impl ToTokens for State {
 
                 impl<#params> #name #generics {
                     pub const fn new() -> Self {
-                        Self(#inner_name (#(#field_default),*))
+                        Self(#inner_name (#(#field_init_iter),*))
                     }
                 }
             };
@@ -75,23 +78,24 @@ impl ToTokens for State {
     }
 }
 
-pub struct StateArg {
+pub struct StateArg<'a> {
     pub name: Ident,
-    pub decl: StateDecl,
+    pub decl: &'a StateDecl,
 }
 
-impl ToTokens for StateArg {
+impl ToTokens for StateArg<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let StateArg {
             name,
-            decl: StateDecl {
-                name: ty_name,
-                generics,
-            },
+            decl:
+                StateDecl {
+                    name: state_ty,
+                    generics,
+                },
         } = self;
 
         *tokens = quote_spanned! { Span::mixed_site() =>
-            #name : &mut #ty_name #generics
+            #state_ty (#name) : &mut #state_ty #generics
         };
     }
 }

@@ -1,11 +1,11 @@
 use proc_macro2::Span;
-use quote::quote_spanned;
+use quote::{format_ident, quote_spanned};
 use syn::{
-    visit::Visit, visit_mut::VisitMut, AttrStyle, Expr, Ident, Index, Local, LocalInit, Pat,
-    PatIdent, PatType, Stmt, Type,
+    parse_quote, visit::Visit, visit_mut::VisitMut, AttrStyle, Block, Expr,
+    Ident, Index, Local, LocalInit, Pat, PatIdent, PatType, Stmt, Type, TypeTuple,
 };
 
-use crate::state::StateArg;
+use crate::state::StateField;
 
 pub struct RetainedLetStmt {
     pub pat: Pat,
@@ -52,79 +52,145 @@ impl Visit<'_> for LocalTyVisitor {
     }
 }
 
-pub struct RetainedLetExpander<'a, 'b> {
-    pub state_arg: &'a StateArg,
-    pub fields: &'b mut Vec<Type>,
+pub struct RetainedLetExpander<'a> {
+    state: Ident,
+    block_state: Ident,
+    depth: usize,
+    fields: &'a mut Vec<StateField>,
+    stack: Vec<Type>,
 }
 
-impl VisitMut for RetainedLetExpander<'_, '_> {
-    fn visit_block_mut(&mut self, i: &mut syn::Block) {
-        for stmt in &mut i.stmts {
-            self.visit_stmt_mut(stmt);
+impl<'a> RetainedLetExpander<'a> {
+    pub fn expand(
+        state: &Ident,
+        depth: usize,
+        fields: &'a mut Vec<StateField>,
+        block: &mut Block,
+    ) {
+        let block_state = format_ident!(
+            "{}{}",
+            state,
+            depth,
+            span = Span::mixed_site()
+        );
 
-            if let Stmt::Local(local) = stmt {
-                if !local.attrs.iter().any(|attr| {
-                    matches!(attr.style, AttrStyle::Outer) && attr.meta.path().is_ident("retained")
-                }) {
-                    continue;
+        let mut this = Self {
+            state: state.clone(),
+            block_state,
+            depth,
+            fields,
+            stack: Vec::new(),
+        };
+
+        for stmt in &mut block.stmts {
+            this.visit_stmt_mut(stmt);
+
+            *stmt = match stmt {
+                Stmt::Local(ref mut local)
+                    if local.attrs.iter().any(|attr| {
+                        matches!(attr.style, AttrStyle::Outer)
+                            && attr.meta.path().is_ident("retained")
+                    }) =>
+                {
+                    this.low(local)
                 }
 
-                let RetainedLetStmt { pat, ty, init } = match RetainedLetStmt::try_from_local(local)
-                {
-                    Ok(res) => res,
+                _ => continue,
+            };
+        }
 
-                    Err(err) => {
-                        *stmt = Stmt::Expr(
-                            Expr::Verbatim(err.to_compile_error()),
-                            Some(Default::default()),
-                        );
-                        continue;
-                    }
-                };
+        if this.stack.is_empty() {
+            return;
+        }
 
-                let StateArg {
-                    name: ref state_name,
-                    ..
-                } = self.state_arg;
+        let index = Index::from(this.fields.len());
+        this.fields.push(StateField {
+            ty: {
+                let mut state_ty = Type::Tuple(TypeTuple {
+                    paren_token: Default::default(),
+                    elems: Default::default(),
+                });
 
-                let index = Index::from(self.fields.len());
-                self.fields.push(ty.clone());
+                for ty in this.stack.into_iter().rev() {
+                    state_ty = parse_quote!(
+                        ::core::option::Option<(#ty , #state_ty)>
+                    );
+                }
 
-                let init_ident = Ident::new("__init", Span::mixed_site());
+                state_ty
+            },
+            init: parse_quote!(::core::option::Option::None),
+        });
 
-                let init_var = Local {
-                    attrs: vec![],
-                    let_token: Default::default(),
-                    pat: Pat::Ident(PatIdent {
-                        attrs: vec![],
-                        by_ref: None,
-                        mutability: None,
-                        ident: init_ident.clone(),
-                        subpat: None,
-                    }),
-                    init: Some(init),
-                    semi_token: Default::default(),
-                };
+        let block_state = &this.block_state;
+        block.stmts.insert(
+            0,
+            Stmt::Expr(
+                Expr::Verbatim(quote_spanned! { Span::mixed_site() =>
+                    let #block_state = &mut #state. #index;
+                }),
+                Some(Default::default()),
+            ),
+        );
+    }
 
-                *stmt = Stmt::Expr(
-                    Expr::Verbatim(quote_spanned!(Span::mixed_site() =>
-                        let #pat = *{
-                            if #state_name .0. #index.is_none() {
-                                #state_name .0. #index = ::core::option::Option::Some({
-                                    #init_var
-                                    #init_ident
-                                });
-                            }
+    fn low(&mut self, local: &mut Local) -> Stmt {
+        let RetainedLetStmt { pat, ty, init } = match RetainedLetStmt::try_from_local(local) {
+            Ok(res) => res,
 
-                            &mut #state_name .0. #index
-                        }.as_mut().unwrap();
-                    )),
+            Err(err) => {
+                return Stmt::Expr(
+                    Expr::Verbatim(err.to_compile_error()),
                     Some(Default::default()),
                 );
             }
-        }
-    }
+        };
 
-    // ignore inner items
-    fn visit_item_mut(&mut self, _: &mut syn::Item) {}
+        self.stack.push(ty.clone());
+
+        let init_ident = Ident::new("__init", Span::mixed_site());
+
+        let init_var = Local {
+            attrs: vec![],
+            let_token: Default::default(),
+            pat: Pat::Ident(PatIdent {
+                attrs: vec![],
+                by_ref: None,
+                mutability: None,
+                ident: init_ident.clone(),
+                subpat: None,
+            }),
+            init: Some(init),
+            semi_token: Default::default(),
+        };
+
+        let block_state = &self.block_state;
+        Stmt::Expr(
+            Expr::Verbatim(quote_spanned!(Span::mixed_site() =>
+                let (ref mut __tmp, ref mut #block_state) = {
+                    if #block_state.is_none() {
+                        * #block_state = ::core::option::Option::Some(({
+                            #init_var
+                            #init_ident
+                        }, Default::default()));
+                    }
+
+                    #block_state .as_mut().unwrap()
+                };
+
+                let #pat = *__tmp;
+            )),
+            Some(Default::default()),
+        )
+    }
+}
+
+impl VisitMut for RetainedLetExpander<'_> {
+    fn visit_block_mut(&mut self, i: &mut syn::Block) {
+        if i.stmts.is_empty() {
+            return;
+        }
+
+        RetainedLetExpander::expand(&self.state, self.depth + 1, self.fields, i);
+    }
 }

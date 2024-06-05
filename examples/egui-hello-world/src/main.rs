@@ -28,12 +28,14 @@ fn retained_update(ctx: &egui::Context, _frame: &mut eframe::Frame) {
         ui.heading("My egui Application");
 
         #[retained]
-        let (ref mut name, ref mut age): (String, i32) = ("Arthur".to_string(), 0);
+        let ref mut name: String = "Arthur".to_string();
         ui.horizontal(|ui| {
             let name_label = ui.label("Your name: ");
             ui.text_edit_singleline(name).labelled_by(name_label.id);
         });
 
+        #[retained]
+        let ref mut age: i32 = 0;
         ui.add(egui::Slider::new(age, 0..=120).text("age"));
 
         if ui.button("Increment").clicked() {
