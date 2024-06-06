@@ -1,4 +1,4 @@
-//! Ported from https://github.com/not-fl3/egui-miniquad/blob/master/examples/demo.rs
+//! Ported from <https://github.com/not-fl3/egui-miniquad/blob/master/examples/demo.rs>
 
 use {egui_miniquad as egui_mq, miniquad as mq, retained::retained};
 

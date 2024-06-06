@@ -1,6 +1,4 @@
 #![no_std]
-
-#[doc(hidden)]
-pub mod __private;
+#![doc = include_str!("../../README.md")]
 
 pub use retained_macro::retained;
