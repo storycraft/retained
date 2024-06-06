@@ -28,7 +28,7 @@ use syn::{parse_macro_input, parse_quote, Ident, ItemFn};
 /// Tagged let statement requires type and initializer like it is `static` or `const`.
 /// Corresponding fields in state struct are initialized on first access and bound to original let statment.
 /// 
-/// The following does not compile as it will move state's field to local variable
+/// The following does not compile as it will move state's field to local variable.
 /// ```compile_fail
 /// #[retained(State)]
 /// fn my_fn() {
