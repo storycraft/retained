@@ -3,12 +3,14 @@ members = ["macro", "lib", "examples/*"]
 resolver = "2"
 
 [workspace.package]
-description = "retained"
+description = "Retain local variables between function calls"
 version = "0.0.4"
 edition = "2021"
 authors = ["storycraft <storycraft@pancake.sh>"]
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/storycraft/retained"
+keywords = ["macro", "retained", "boilerplate"]
+categories = ["caching"]
 
 [workspace.dependencies]
 retained = { path = "./lib" }
