@@ -1,6 +1,6 @@
 [workspace]
 members = ["macro", "lib", "examples/*"]
-default-members = ["lib"]
+default-members = ["lib", "macro"]
 resolver = "2"
 
 [workspace.package]
