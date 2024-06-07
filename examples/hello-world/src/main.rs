@@ -7,7 +7,7 @@ pub fn display<T: Display>(input: T, input2: &str) {
     #[retained]
     let ref input: T = input;
 
-    #[retained]
+    #[retained(default)]
     let ref mut nested: State2 = State2::new();
     display_str(input2, nested);
 

@@ -74,11 +74,11 @@ impl mq::EventHandler for Stage {
 fn draw_stateful(egui_ctx: &egui::Context) {
     let dpi_scale = mq::window::dpi_scale();
 
-    #[retained]
+    #[retained(default)]
     let ref mut show_egui_demo_windows: bool = true;
 
     if *show_egui_demo_windows {
-        #[retained]
+        #[retained(default)]
         let ref mut egui_demo_windows: egui_demo_lib::DemoWindows =
             egui_demo_lib::DemoWindows::default();
 
@@ -91,12 +91,11 @@ fn draw_stateful(egui_ctx: &egui::Context) {
     // we saw last time (meaning the user has changed it).
     let curr_egui_zoom = egui_ctx.zoom_factor();
 
-    #[retained]
-    let (ref mut zoom_factor, ref mut prev_egui_zoom_factor): (f32, f32) = (1.0, curr_egui_zoom);
-    if *prev_egui_zoom_factor != curr_egui_zoom {
+    #[retained(default)]
+    let ref mut zoom_factor: f32= 1.0;
+    if *zoom_factor != curr_egui_zoom {
         *zoom_factor = curr_egui_zoom;
     }
-    *prev_egui_zoom_factor = curr_egui_zoom;
 
     egui::Window::new("egui ❤ miniquad").show(egui_ctx, |ui| {
         egui::widgets::global_dark_light_mode_buttons(ui);
@@ -141,7 +140,7 @@ fn draw_stateful(egui_ctx: &egui::Context) {
         egui::ScrollArea::both()
             .auto_shrink([false; 2])
             .show(ui, |ui| {
-                #[retained]
+                #[retained(default)]
                 let ref mut color_test: egui_demo_lib::ColorTest =
                     egui_demo_lib::ColorTest::default();
 

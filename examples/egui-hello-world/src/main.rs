@@ -27,14 +27,14 @@ fn retained_update(ctx: &egui::Context, _frame: &mut eframe::Frame) {
     egui::CentralPanel::default().show(ctx, |ui| {
         ui.heading("My egui Application");
 
-        #[retained]
+        #[retained(default)]
         let ref mut name: String = "Arthur".to_string();
         ui.horizontal(|ui| {
             let name_label = ui.label("Your name: ");
             ui.text_edit_singleline(name).labelled_by(name_label.id);
         });
 
-        #[retained]
+        #[retained(default)]
         let ref mut age: i32 = 0;
         ui.add(egui::Slider::new(age, 0..=120).text("age"));
 
