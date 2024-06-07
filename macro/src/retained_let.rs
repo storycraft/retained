@@ -12,22 +12,22 @@ use syn::{
 use crate::state::StateField;
 
 pub enum Init {
-    Lazy,
-    Item,
+    Inplace,
+    Default,
 }
 
 impl Parse for Init {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         input.step(|cursor| {
             if let Some((ident, rest)) = cursor.ident() {
-                if ident == "lazy" {
-                    return Ok((Self::Lazy, rest));
-                } else if ident == "item" {
-                    return Ok((Self::Item, rest));
+                if ident == "inplace" {
+                    return Ok((Self::Inplace, rest));
+                } else if ident == "default" {
+                    return Ok((Self::Default, rest));
                 }
             }
 
-            Err(cursor.error("expected `lazy or item`"))
+            Err(cursor.error("expected `inplace` or `default`"))
         })
     }
 }
@@ -43,7 +43,7 @@ impl RetainedLetAttr {
         }
 
         let Meta::List(ref list) = attr.meta else {
-            return Some(Ok(Self { init: Init::Lazy }));
+            return Some(Ok(Self { init: Init::Inplace }));
         };
 
         Some(match list.parse_args::<Init>() {
@@ -190,8 +190,8 @@ impl<'a> RetainedLetExpander<'a> {
         RetainedLetStmt { attr, init, ty }: RetainedLetStmt,
     ) -> Stmt {
         match attr.init {
-            Init::Lazy => self.low_lazy(local, init, ty),
-            Init::Item => match self.low_item(local, init, ty) {
+            Init::Inplace => self.low_inplace(local, init, ty),
+            Init::Default => match self.low_default(local, init, ty) {
                 Ok(stmt) => stmt,
 
                 Err(err) => Stmt::Expr(
@@ -202,11 +202,11 @@ impl<'a> RetainedLetExpander<'a> {
         }
     }
 
-    fn low_item(&mut self, local: &mut Local, init: LocalInit, ty: Type) -> syn::Result<Stmt> {
+    fn low_default(&mut self, local: &mut Local, init: LocalInit, ty: Type) -> syn::Result<Stmt> {
         if init.diverge.is_some() {
             return Err(syn::Error::new_spanned(
                 local,
-                "item retained let cannot diverge",
+                "default retained let cannot diverge",
             ));
         }
         let index = Index::from(self.fields.len());
@@ -226,7 +226,7 @@ impl<'a> RetainedLetExpander<'a> {
         ))
     }
 
-    fn low_lazy(&mut self, local: &mut Local, init: LocalInit, ty: Type) -> Stmt {
+    fn low_inplace(&mut self, local: &mut Local, init: LocalInit, ty: Type) -> Stmt {
         self.stack.push(ty.clone());
 
         let init_ident = Ident::new("__init", Span::mixed_site());
