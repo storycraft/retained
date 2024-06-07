@@ -5,17 +5,76 @@ use syn::{
     parse_quote,
     visit::Visit,
     visit_mut::VisitMut,
-    AttrStyle, Block, Expr, Ident, Index, Local, Pat, PatIdent, PatType, Stmt, Type, TypeTuple,
+    AttrStyle, Attribute, Block, Expr, Ident, Index, Local, LocalInit, Meta, Pat, PatIdent,
+    PatType, Stmt, Type, TypeTuple,
 };
 
 use crate::state::StateField;
 
+pub enum Init {
+    Lazy,
+    Item,
+}
+
+impl Parse for Init {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        input.step(|cursor| {
+            if let Some((ident, rest)) = cursor.ident() {
+                if ident == "lazy" {
+                    return Ok((Self::Lazy, rest));
+                } else if ident == "item" {
+                    return Ok((Self::Item, rest));
+                }
+            }
+
+            Err(cursor.error("expected `lazy or item`"))
+        })
+    }
+}
+
+pub struct RetainedLetAttr {
+    pub init: Init,
+}
+
+impl RetainedLetAttr {
+    pub fn try_from_attr(attr: &Attribute) -> Option<syn::Result<Self>> {
+        if !matches!(attr.style, AttrStyle::Outer) || !attr.meta.path().is_ident("retained") {
+            return None;
+        }
+
+        let Meta::List(ref list) = attr.meta else {
+            return Some(Ok(Self { init: Init::Lazy }));
+        };
+
+        Some(match list.parse_args::<Init>() {
+            Ok(init) => Ok(Self { init }),
+            Err(err) => Err(err),
+        })
+    }
+}
+
 pub struct RetainedLetStmt {
+    pub attr: RetainedLetAttr,
     pub ty: Type,
+    pub init: LocalInit,
 }
 
 impl RetainedLetStmt {
-    pub fn try_from_local(i: &Local) -> syn::Result<Self> {
+    pub fn try_from_local(i: &Local) -> Option<syn::Result<Self>> {
+        let attr = i
+            .attrs
+            .iter()
+            .rev()
+            .filter_map(RetainedLetAttr::try_from_attr)
+            .next()?;
+
+        Some(match attr {
+            Ok(attr) => Self::try_from_local_inner(i, attr),
+            Err(err) => Err(err),
+        })
+    }
+
+    fn try_from_local_inner(i: &Local, attr: RetainedLetAttr) -> syn::Result<Self> {
         let LocalTyVisitor { ty: Some(ty) } = ({
             let mut visitor = LocalTyVisitor::default();
             visitor.visit_local(i);
@@ -25,24 +84,17 @@ impl RetainedLetStmt {
             return Err(syn::Error::new_spanned(i, "missing type for retained let"));
         };
 
-        if i.init.is_none() {
-            return Err(syn::Error::new_spanned(
-                i,
-                "missing initializer in retained let",
-            ));
+        let init = match i.init {
+            Some(ref init) => init.clone(),
+            None => {
+                return Err(syn::Error::new_spanned(
+                    i,
+                    "missing initializer in retained let",
+                ))
+            }
         };
 
-        Ok(Self { ty })
-    }
-}
-
-pub struct LetAttrList {
-    pub default: bool,
-}
-
-impl Parse for LetAttrList {
-    fn parse(_input: ParseStream) -> syn::Result<Self> {
-        todo!()
+        Ok(Self { ty, attr, init })
     }
 }
 
@@ -83,15 +135,16 @@ impl<'a> RetainedLetExpander<'a> {
             this.visit_stmt_mut(stmt);
 
             *stmt = match stmt {
-                Stmt::Local(ref mut local)
-                    if local.attrs.iter().any(|attr| {
-                        matches!(attr.style, AttrStyle::Outer)
-                            && attr.meta.path().is_ident("retained")
-                    }) =>
-                {
-                    this.low(local)
-                }
+                Stmt::Local(ref mut local) => match RetainedLetStmt::try_from_local(local) {
+                    Some(Ok(retained_let)) => this.low(local, retained_let),
 
+                    Some(Err(err)) => Stmt::Expr(
+                        Expr::Verbatim(err.to_compile_error()),
+                        Some(Default::default()),
+                    ),
+
+                    _ => continue,
+                },
                 _ => continue,
             };
         }
@@ -131,18 +184,49 @@ impl<'a> RetainedLetExpander<'a> {
         );
     }
 
-    fn low(&mut self, local: &mut Local) -> Stmt {
-        let RetainedLetStmt { ty } = match RetainedLetStmt::try_from_local(local) {
-            Ok(res) => res,
+    fn low(
+        &mut self,
+        local: &mut Local,
+        RetainedLetStmt { attr, init, ty }: RetainedLetStmt,
+    ) -> Stmt {
+        match attr.init {
+            Init::Lazy => self.low_lazy(local, init, ty),
+            Init::Item => match self.low_item(local, init, ty) {
+                Ok(stmt) => stmt,
 
-            Err(err) => {
-                return Stmt::Expr(
+                Err(err) => Stmt::Expr(
                     Expr::Verbatim(err.to_compile_error()),
                     Some(Default::default()),
-                );
-            }
-        };
+                ),
+            },
+        }
+    }
 
+    fn low_item(&mut self, local: &mut Local, init: LocalInit, ty: Type) -> syn::Result<Stmt> {
+        if init.diverge.is_some() {
+            return Err(syn::Error::new_spanned(
+                local,
+                "item retained let cannot diverge",
+            ));
+        }
+        let index = Index::from(self.fields.len());
+        self.fields.push(StateField {
+            ty,
+            init: *init.expr,
+        });
+
+        let pat = &local.pat;
+
+        let state = &self.state;
+        Ok(Stmt::Expr(
+            Expr::Verbatim(quote_spanned!(Span::mixed_site() =>
+                let #pat = #state . #index;
+            )),
+            Some(Default::default()),
+        ))
+    }
+
+    fn low_lazy(&mut self, local: &mut Local, init: LocalInit, ty: Type) -> Stmt {
         self.stack.push(ty.clone());
 
         let init_ident = Ident::new("__init", Span::mixed_site());
@@ -157,7 +241,7 @@ impl<'a> RetainedLetExpander<'a> {
                 ident: init_ident.clone(),
                 subpat: None,
             }),
-            init: local.init.take(),
+            init: Some(init),
             semi_token: Default::default(),
         };
 
