@@ -92,7 +92,7 @@ fn draw_stateful(egui_ctx: &egui::Context) {
     let curr_egui_zoom = egui_ctx.zoom_factor();
 
     #[retained(default)]
-    let ref mut zoom_factor: f32= 1.0;
+    let ref mut zoom_factor: f32 = 1.0;
     if *zoom_factor != curr_egui_zoom {
         *zoom_factor = curr_egui_zoom;
     }

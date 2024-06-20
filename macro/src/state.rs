@@ -25,10 +25,26 @@ pub struct StateField {
     pub init: Expr,
 }
 
+pub struct StateProvided {
+    pub name: Ident,
+    pub ty: Type,
+}
+
+impl ToTokens for StateProvided {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let Self { name, ty } = self;
+
+        *tokens = quote_spanned!(Span::mixed_site() =>
+            #name : #ty
+        );
+    }
+}
+
 pub struct State {
     pub vis: Visibility,
     pub decl: StateDecl,
     pub fields: Vec<StateField>,
+    pub new_args: Vec<StateProvided>,
 }
 
 impl ToTokens for State {
@@ -36,6 +52,7 @@ impl ToTokens for State {
         let Self {
             vis,
             decl: StateDecl { name, generics },
+            new_args,
             fields,
         } = self;
 
@@ -56,12 +73,6 @@ impl ToTokens for State {
             );
 
             const _: () = {
-                impl<#params> ::core::default::Default for #name #generics {
-                    fn default() -> Self {
-                        Self::new()
-                    }
-                }
-
                 impl<#params> ::core::fmt::Debug for #name #generics {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                         f.debug_struct(::core::stringify!(#name)).finish_non_exhaustive()
@@ -69,7 +80,7 @@ impl ToTokens for State {
                 }
 
                 impl<#params> #name #generics {
-                    pub fn new() -> Self {
+                    pub fn new(#(#new_args),* ) -> Self {
                         Self(#inner_name (#(#field_init_iter),*))
                     }
                 }

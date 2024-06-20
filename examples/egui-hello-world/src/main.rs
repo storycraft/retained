@@ -47,8 +47,13 @@ fn retained_update(ctx: &egui::Context, _frame: &mut eframe::Frame) {
     });
 }
 
-#[derive(Default)]
 struct App(AppState);
+
+impl Default for App {
+    fn default() -> Self {
+        Self(AppState::new())
+    }
+}
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
