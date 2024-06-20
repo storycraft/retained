@@ -8,7 +8,7 @@ pub fn display<T: Display>(input: T, input2: &str) {
     let ref input: T = input;
 
     #[retained(default)]
-    let ref mut nested: State2 = State2::new();
+    let ref mut nested: State2 = State2::new("message".to_string());
     display_str(input2, nested);
 
     println!("input: {input}");
@@ -16,10 +16,13 @@ pub fn display<T: Display>(input: T, input2: &str) {
 
 #[retained(State2)]
 pub fn display_str(text: &str) {
+    #[retained(provided)]
+    let ref name: String;
+
     #[retained]
     let ref text: String = text.to_string();
 
-    println!("text: {text}");
+    println!("{name}: {text}");
 }
 
 fn main() {
