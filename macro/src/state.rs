@@ -15,7 +15,11 @@ impl Parse for StateDecl {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         Ok(Self {
             name: input.parse()?,
-            generics: input.parse()?,
+            generics: {
+                let mut generics: Generics = input.parse()?;
+                generics.where_clause = input.parse()?;
+                generics
+            },
         })
     }
 }
@@ -56,7 +60,7 @@ impl ToTokens for State {
             fields,
         } = self;
 
-        let params = &generics.params;
+        let (impl_gen, ty_gen, where_gen) = generics.split_for_impl();
 
         let inner_name = quote::format_ident!("__{}", name, span = Span::mixed_site());
 
@@ -64,22 +68,22 @@ impl ToTokens for State {
         let field_init_iter = fields.iter().map(|field| &field.init);
 
         *tokens = quote_spanned!(Span::mixed_site() =>
-            struct #inner_name #generics(#(#field_ty_iter),*);
+            struct #inner_name #ty_gen (#(#field_ty_iter),*) #where_gen;
 
             #[repr(transparent)]
             #[non_exhaustive]
-            #vis struct #name #generics(
-                #inner_name #generics,
-            );
+            #vis struct #name #ty_gen (
+                #inner_name #ty_gen,
+            ) #where_gen;
 
             const _: () = {
-                impl<#params> ::core::fmt::Debug for #name #generics {
+                impl #impl_gen ::core::fmt::Debug for #name #ty_gen #where_gen {
                     fn fmt(&self, f: &mut ::core::fmt::Formatter<'_>) -> ::core::fmt::Result {
                         f.debug_struct(::core::stringify!(#name)).finish_non_exhaustive()
                     }
                 }
 
-                impl<#params> #name #generics {
+                impl #impl_gen #name #ty_gen #where_gen {
                     pub fn new(#(#new_args),* ) -> Self {
                         Self(#inner_name (#(#field_init_iter),*))
                     }
