@@ -1,25 +1,37 @@
 use proc_macro2::Span;
 use quote::{quote_spanned, ToTokens};
 use syn::{
+    parenthesized,
     parse::{Parse, ParseStream},
-    Expr, Generics, Ident, Type, Visibility,
+    punctuated::Punctuated,
+    token::{Comma, Paren},
+    Expr, Generics, Ident, PatType, Type, Visibility,
 };
 
 #[derive(Clone)]
 pub struct StateDecl {
     pub name: Ident,
     pub generics: Generics,
+    pub constructor: Punctuated<PatType, Comma>,
 }
 
 impl Parse for StateDecl {
     fn parse(input: ParseStream) -> syn::Result<Self> {
+        let name = input.parse()?;
+        let mut generics: Generics = input.parse()?;
+        let constructor = if input.peek(Paren) {
+            let content;
+            _ = parenthesized!(content in input);
+            Punctuated::parse_terminated(&content)?
+        } else {
+            Punctuated::new()
+        };
+        generics.where_clause = input.parse()?;
+
         Ok(Self {
-            name: input.parse()?,
-            generics: {
-                let mut generics: Generics = input.parse()?;
-                generics.where_clause = input.parse()?;
-                generics
-            },
+            name,
+            generics,
+            constructor,
         })
     }
 }
@@ -48,15 +60,18 @@ pub struct State {
     pub vis: Visibility,
     pub decl: StateDecl,
     pub fields: Vec<StateField>,
-    pub new_args: Vec<StateProvided>,
 }
 
 impl ToTokens for State {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         let Self {
             vis,
-            decl: StateDecl { name, generics },
-            new_args,
+            decl:
+                StateDecl {
+                    name,
+                    generics,
+                    constructor,
+                },
             fields,
         } = self;
 
@@ -84,7 +99,7 @@ impl ToTokens for State {
                 }
 
                 impl #impl_gen #name #ty_gen #where_gen {
-                    pub fn new(#(#new_args),* ) -> Self {
+                    pub fn new(#constructor) -> Self {
                         Self(#inner_name (#(#field_init_iter),*))
                     }
                 }
@@ -106,6 +121,7 @@ impl ToTokens for StateArg<'_> {
                 StateDecl {
                     name: state_ty,
                     generics,
+                    ..
                 },
         } = self;
 

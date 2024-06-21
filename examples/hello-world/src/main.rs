@@ -14,10 +14,10 @@ pub fn display<T: Display>(input: T, input2: &str) {
     println!("input: {input}");
 }
 
-#[retained(State2)]
+#[retained(State2(name: String))]
 pub fn display_str(text: &str) {
-    #[retained(provided)]
-    let ref name: String;
+    #[retained(default)]
+    let ref name: String = name;
 
     #[retained]
     let ref text: String = text.to_string();

@@ -55,7 +55,6 @@ pub fn retained(attr: TokenStream, item: TokenStream) -> TokenStream {
         vis: f.vis.clone(),
         decl: parse_macro_input!(attr as StateDecl),
         fields: Vec::new(),
-        new_args: Vec::new(),
     };
 
     let name = Ident::new("__inner", Span::mixed_site());

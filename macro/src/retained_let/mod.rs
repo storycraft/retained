@@ -1,10 +1,8 @@
 mod default;
 mod inplace;
-mod provided;
 
 pub use default::DefaultLetStmt;
 pub use inplace::InplaceLetStmt;
-pub use provided::ProvidedLetStmt;
 
 use proc_macro2::Span;
 use quote::{format_ident, quote_spanned};
@@ -22,7 +20,6 @@ use crate::state::{State, StateField};
 enum InitMode {
     Inplace,
     Default,
-    Provided,
 }
 
 impl Parse for InitMode {
@@ -33,12 +30,10 @@ impl Parse for InitMode {
                     return Ok((Self::Inplace, rest));
                 } else if ident == "default" {
                     return Ok((Self::Default, rest));
-                } else if ident == "provided" {
-                    return Ok((Self::Provided, rest));
                 }
             }
 
-            Err(cursor.error("expected `inplace`, `default` or `provided`"))
+            Err(cursor.error("expected `inplace` or `default`"))
         })
     }
 }
@@ -65,7 +60,6 @@ impl Attr {
 pub enum RetainedLetStmt {
     Inplace(InplaceLetStmt),
     Default(DefaultLetStmt),
-    Provided(ProvidedLetStmt),
 }
 
 impl RetainedLetStmt {
@@ -87,7 +81,6 @@ impl RetainedLetStmt {
         Ok(match init {
             InitMode::Inplace => Self::Inplace(InplaceLetStmt::try_from(i)?),
             InitMode::Default => Self::Default(DefaultLetStmt::try_from(i)?),
-            InitMode::Provided => Self::Provided(ProvidedLetStmt::try_from(i)?),
         })
     }
 }
@@ -170,7 +163,6 @@ impl<'a, 'b> RetainedLetExpander<'a> {
         match retaind_let {
             RetainedLetStmt::Inplace(inplace) => inplace.low(&self.block_state, &mut self.stack),
             RetainedLetStmt::Default(default) => default.low(&self.state_arg, self.state),
-            RetainedLetStmt::Provided(provided) => provided.low(&self.state_arg, self.state),
         }
     }
 }
