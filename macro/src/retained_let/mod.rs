@@ -38,20 +38,18 @@ impl Parse for InitMode {
     }
 }
 
-struct Attr(InitMode);
-
-impl Attr {
+impl InitMode {
     pub fn try_from_attr(attr: &Attribute) -> Option<syn::Result<Self>> {
         if !matches!(attr.style, AttrStyle::Outer) || !attr.meta.path().is_ident("retained") {
             return None;
         }
 
         let Meta::List(ref list) = attr.meta else {
-            return Some(Ok(Self(InitMode::Inplace)));
+            return Some(Ok(InitMode::Inplace));
         };
 
         Some(match list.parse_args::<InitMode>() {
-            Ok(init) => Ok(Self(init)),
+            Ok(init) => Ok(init),
             Err(err) => Err(err),
         })
     }
@@ -68,7 +66,7 @@ impl RetainedLetStmt {
             .attrs
             .iter()
             .rev()
-            .filter_map(Attr::try_from_attr)
+            .filter_map(InitMode::try_from_attr)
             .next()?;
 
         Some(match attr {
@@ -77,7 +75,7 @@ impl RetainedLetStmt {
         })
     }
 
-    fn try_from_local_inner(i: &Local, Attr(init): Attr) -> syn::Result<Self> {
+    fn try_from_local_inner(i: &Local, init: InitMode) -> syn::Result<Self> {
         Ok(match init {
             InitMode::Inplace => Self::Inplace(InplaceLetStmt::try_from(i)?),
             InitMode::Default => Self::Default(DefaultLetStmt::try_from(i)?),
